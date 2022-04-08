@@ -1,8 +1,12 @@
 package com.kreitek.editor;
 
 import com.kreitek.editor.commands.CommandFactory;
+import com.kreitek.editor.commands.UndoCommand;
+import com.kreitek.editor.memento.EditorCaretaker;
+import com.kreitek.editor.memento.Memento;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 public class ConsoleEditor implements Editor {
@@ -18,7 +22,7 @@ public class ConsoleEditor implements Editor {
 
     private final CommandFactory commandFactory = new CommandFactory();
     private ArrayList<String> documentLines = new ArrayList<String>();
-
+    private EditorCaretaker editorCaretaker = EditorCaretaker.getInstance();
     @Override
     public void run() {
         boolean exit = false;
@@ -27,13 +31,16 @@ public class ConsoleEditor implements Editor {
             try {
                 Command command = commandFactory.getCommand(commandLine);
                 command.execute(documentLines);
+                if(!(command instanceof UndoCommand)) {
+                    editorCaretaker.push(getState());
+                }
+                showDocumentLines(documentLines);
+                showHelp();
             } catch (BadCommandException e) {
                 printErrorToConsole("Bad command");
             } catch (ExitException e) {
                 exit = true;
             }
-            showDocumentLines(documentLines);
-            showHelp();
         }
     }
 
@@ -52,6 +59,11 @@ public class ConsoleEditor implements Editor {
             printLnToConsole("<== END DOCUMENT");
             setTextColor(TEXT_RESET);
         }
+    }
+
+    private Memento getState() {
+        ArrayList<String> state = (ArrayList<String>) documentLines.clone();
+        return new Memento(state);
     }
 
     private String waitForNewCommand() {
